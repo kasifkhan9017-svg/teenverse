@@ -494,16 +494,54 @@ const loadData = async () => {
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     const tableName = isClient ? 'clients' : 'freelancers';
-    const cleanUpdates = { name: profileForm.name, phone: profileForm.phone, nationality: profileForm.nationality };
+
+    // 1. BASE FIELDS (Safe for everyone)
+    const cleanUpdates = { 
+        name: profileForm.name, 
+        phone: profileForm.phone, 
+        nationality: profileForm.nationality 
+    };
+
     if (!isClient) {
-        cleanUpdates.age = profileForm.age; cleanUpdates.qualification = profileForm.qualification;
-        cleanUpdates.specialty = profileForm.specialty; cleanUpdates.services = profileForm.services;
-        cleanUpdates.upi = profileForm.upi; cleanUpdates.bank_name = profileForm.bank_name;
-        cleanUpdates.account_number = profileForm.account_number; cleanUpdates.ifsc_code = profileForm.ifsc_code;
-    } else { cleanUpdates.is_organisation = profileForm.is_organisation; }
+        // 2. FREELANCER PROFESSIONAL STATS
+        cleanUpdates.age = profileForm.age; 
+        cleanUpdates.qualification = profileForm.qualification;
+        cleanUpdates.specialty = profileForm.specialty; 
+        cleanUpdates.services = profileForm.services;
+
+        // 3. LEGAL BANKING SPLIT (CRITICAL)
+        // We calculate minor status dynamically based on the input age
+        const isMinor = parseInt(profileForm.age) < 18;
+
+        if (isMinor) {
+            // --- OPTION A: MINOR (Save to Guardian Fields) ---
+            cleanUpdates.guardian_name = profileForm.guardian_name;
+            cleanUpdates.guardian_pan = profileForm.guardian_pan;
+            cleanUpdates.guardian_upi = profileForm.guardian_upi;
+            // Add guardian bank account fields here if your schema has them
+            // cleanUpdates.guardian_account_number = profileForm.guardian_account_number;
+        } else {
+            // --- OPTION B: ADULT (Save to Personal Fields) ---
+            cleanUpdates.upi = profileForm.upi; 
+            cleanUpdates.bank_name = profileForm.bank_name;
+            cleanUpdates.account_number = profileForm.account_number; 
+            cleanUpdates.ifsc_code = profileForm.ifsc_code;
+        }
+
+    } else { 
+        // 4. CLIENT SPECIFIC
+        cleanUpdates.is_organisation = profileForm.is_organisation; 
+    }
+
+    // 5. SEND TO DB
     const { error } = await api.updateUserProfile(user.id, cleanUpdates, tableName);
-    if (error) { showToast(error.message, 'error'); } 
-    else { showToast("Profile & Bank Details updated!", "success"); setUser({ ...user, ...cleanUpdates }); }
+
+    if (error) { 
+        showToast(error.message, 'error'); 
+    } else { 
+        showToast("Profile & Bank Details updated!", "success"); 
+        setUser({ ...user, ...cleanUpdates }); 
+    }
   };
 
   const handleQuizSelection = async (categoryId, passed) => {
